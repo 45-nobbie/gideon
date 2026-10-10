@@ -159,6 +159,7 @@ def parse_intent(query: str) -> ParsedIntent | None:
         "list directory",
         "show directory contents",
         "list hidden files",
+        "show hidden files",
     )):
         return ParsedIntent(
             IntentName.LIST_FILES,

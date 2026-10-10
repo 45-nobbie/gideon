@@ -18,11 +18,11 @@ from gideon.parser import parse_intent
         ("show running processes", IntentName.SHOW_PROCESSES),
         ("show the Linux version", IntentName.SHOW_SYSTEM_INFO),
         ("list hidden files", IntentName.LIST_FILES),
+        ("show hidden files", IntentName.LIST_FILES),
     ],
 )
 def test_recognizes_supported_intents(query, expected):
     result = parse_intent(query)
-
     assert result is not None
     assert result.name == expected
 

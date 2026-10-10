@@ -1,26 +1,21 @@
 import json
-from multiprocessing.util import info
 import re
+import shlex
+import shutil
+import subprocess
 from pathlib import Path
-from rich import box
+
 import typer
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-import shlex
+
 from gideon.generator import generate_from_intent
 from gideon.knowledge import COMMANDS
-import shutil
-import subprocess
-from gideon.saved_commands import (
-    AliasAlreadyExistsError,
-    AliasNotFoundError,
-    InvalidAliasError,
-    SavedCommandError,
-    SavedCommandStore,
-)
-from rich.table import Table
+from gideon.saved_commands import SavedCommandError, SavedCommandStore
+
 
 app = typer.Typer(
     name="gideon",
@@ -55,61 +50,6 @@ def hello() -> None:
 
 
 
-@app.command("how")
-def how_gideon(
-    request: str = typer.Argument(
-        ...,
-        help="Describe what you want to accomplish in Linux.",
-    ),
-) -> None:
-    """Suggest and explain a Linux command from natural language."""
-    result = generate_from_intent(request)
-
-    if result is None:
-        console.print(
-            "[yellow]Gideon doesn't recognize that request yet.[/yellow]"
-        )
-        console.print(
-            "Try describing a file, storage, networking, "
-            "or system-information task."
-        )
-        raise typer.Exit(code=1)
-
-    if "error" in result:
-        console.print(f"[red]{result['error']}[/red]")
-        raise typer.Exit(code=1)
-
-    console.print()
-    console.print(
-        Panel(
-            request,
-            title="Gideon understood your request",
-            border_style="cyan",
-        )
-    )
-
-    console.print(
-        Panel(
-            str(result["command"]),
-            title="Proposed command — review before running",
-            border_style="green",
-        )
-    )
-
-    explanation = Table(
-        title="How the command works",
-        show_header=True,
-    )
-    explanation.add_column("Syntax", style="cyan")
-    explanation.add_column("Meaning")
-
-    for token, meaning in result["explanation"]:
-        explanation.add_row(str(token), str(meaning))
-
-    console.print(explanation)
-    console.print(
-        "\n[dim]Gideon has not executed this command.[/dim]"
-    )
 
 
 
@@ -212,21 +152,6 @@ def search(
 
 
 
-@app.command()
-def demo() -> None:
-    """Demonstrate Rich formatting."""
-    table = Table(title="The Ancient Knowledge")
-
-    table.add_column("Flag", style="cyan", no_wrap=True)
-    table.add_column("Meaning", style="white")
-    table.add_column("Example", style="green")
-
-    table.add_row("-type d", "Match directories", "find . -type d")
-    table.add_row("-iname", "Case-insensitive name", 'find . -iname "*.log"')
-    table.add_row("-mtime", "Filter by modification age", "find . -mtime -7")
-
-    console.print(table)
-
 
 DATA_FILE = Path(__file__).parent / "data" / "commands.json"
 
@@ -234,6 +159,35 @@ DATA_FILE = Path(__file__).parent / "data" / "commands.json"
 def load_commands() -> list[dict]:
     with DATA_FILE.open(encoding="utf-8") as file:
         return json.load(file)
+
+
+
+def search_recipes(
+    query: str,
+    shell: str = "bash",
+) -> list[tuple[int, dict]]:
+    """Find recipes that match the query, ranked by keyword overlap."""
+    commands = load_commands()
+    words = set(re.findall(r"[a-z0-9]+", query.lower()))
+    results = []
+
+    for item in commands:
+        if item["shell"].lower() != shell.lower():
+            continue
+
+        searchable = set(
+            item["tags"]
+            + re.findall(r"[a-z0-9]+", item["description"].lower())
+            + re.findall(r"[a-z0-9]+", item["command"].lower())
+        )
+
+        score = len(words & searchable)
+
+        if score:
+            results.append((score, item))
+
+    results.sort(key=lambda result: result[0], reverse=True)
+    return results
 
 
 @app.command()
@@ -249,38 +203,57 @@ def howto(
         help="Command environment: bash, powershell, or cmd.",
     ),
 ) -> None:
-    """Find a command by describing the task."""
-    commands = load_commands()
+    """Generate a command or find a matching recipe."""
+    selected_shell = shell.lower()
 
-    words = set(re.findall(r"[a-z0-9]+", query.lower()))
-    results = []
+    # First, try intent-based generation for Bash/Linux.
+    result = None
+    if selected_shell == "bash":
+        result = generate_from_intent(query)
 
-    for item in commands:
-        if item["shell"] != shell.lower():
-            continue
+    if result is not None:
+        if "error" in result:
+            console.print(f"[red]{result['error']}[/red]")
+            raise typer.Exit(code=1)
 
-        searchable = set(
-            item["tags"]
-            + re.findall(
-                r"[a-z0-9]+",
-                item["description"].lower(),
+        console.print()
+        console.print(
+            Panel(
+                query,
+                title="Gideon understood your request",
+                border_style="cyan",
             )
-            + re.findall(
-                r"[a-z0-9]+",
-                item["command"].lower(),
+        )
+        console.print(
+            Panel(
+                str(result["command"]),
+                title="Proposed command — review before running",
+                border_style="green",
             )
         )
 
-        score = len(words & searchable)
+        explanation = Table(
+            title="How the command works",
+            show_header=True,
+        )
+        explanation.add_column("Syntax", style="cyan")
+        explanation.add_column("Meaning")
 
-        if score:
-            results.append((score, item))
+        for token, meaning in result["explanation"]:
+            explanation.add_row(str(token), str(meaning))
 
-    results.sort(key=lambda result: result[0], reverse=True)
+        console.print(explanation)
+        console.print(
+            "\n[dim]Gideon has not executed this command.[/dim]"
+        )
+        return
+
+    # If generation cannot handle the request, search recipes.
+    results = search_recipes(query, selected_shell)
 
     if not results:
         console.print(
-            "[yellow]Gideon has no wisdom on this matter yet.[/yellow]"
+            "[yellow]Gideon couldn't find a suitable command.[/yellow]"
         )
         console.print(
             "Try different keywords or add a recipe to commands.json."
@@ -312,6 +285,10 @@ def howto(
             table.add_row(syntax, meaning)
 
         console.print(table)
+
+
+
+
 
 
 def _tokenize_command(command: str) -> list[str]:
