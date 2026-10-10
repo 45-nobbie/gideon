@@ -1,4 +1,6 @@
 
+import shlex
+
 from gideon.intents import CommandPlan, CommandStage, IntentName, ParsedIntent
 
 
@@ -16,10 +18,14 @@ def build_find_command(intent: ParsedIntent) -> dict[str, object]:
     if size is not None and unit is not None:
         comparison = intent.parameters.get("size_comparison", "greater")
         unit_map = {
-            "KB": "K", "KIB": "K",
-            "MB": "M", "MIB": "M",
-            "GB": "G", "GIB": "G",
-            "TB": "T", "TIB": "T",
+            "KB": "K",
+            "KIB": "K",
+            "MB": "M",
+            "MIB": "M",
+            "GB": "G",
+            "GIB": "G",
+            "TB": "T",
+            "TIB": "T",
         }
         if unit not in unit_map:
             return {"error": f"Unsupported size unit: {unit}"}
@@ -39,7 +45,7 @@ def build_find_command(intent: ParsedIntent) -> dict[str, object]:
     )
 
     return {
-        "command": " ".join(plan.stages[0].argv),
+        "command": shlex.join(plan.stages[0].argv),
         "explanation": [
             ("find", "Searches for matching filesystem entries."),
             ("-type f", "Restricts results to regular files."),
@@ -61,7 +67,7 @@ def build_grep_command(intent: ParsedIntent) -> dict[str, object]:
     )
 
     return {
-        "command": " ".join(plan.stages[0].argv),
+        "command": shlex.join(plan.stages[0].argv),
         "explanation": [
             ("grep", "Searches text using a pattern."),
             ("-r", "Searches directories recursively."),

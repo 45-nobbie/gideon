@@ -1,5 +1,6 @@
 
 import pytest
+
 from gideon.generator import generate
 
 
@@ -30,3 +31,10 @@ def test_file_search_requests_are_recognized(query):
     result = generate(query)
     assert result is not None
     assert result["intent"] == "find_files"
+
+
+def test_log_file_search_quotes_wildcard():
+    result = generate("find files ending in .log")
+
+    assert result is not None
+    assert result["command"] == "find . -type f -name '*.log' -print"
