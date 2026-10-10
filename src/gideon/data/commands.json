@@ -1,0 +1,56 @@
+
+[
+  {
+    "id": "find-directories",
+    "shell": "bash",
+    "command": "find . -type d",
+    "description": "Find all directories under the current directory",
+    "tags": ["find", "directory", "directories", "folder", "folders"],
+    "explanation": [
+      ["find", "Search for files and directories"],
+      [".", "Start at the current directory"],
+      ["-type d", "Match directories only"]
+    ],
+    "safety": "read-only"
+  },
+  {
+    "id": "find-by-name",
+    "shell": "bash",
+    "command": "find . -type f -name '*.log'",
+    "description": "Find files ending in .log",
+    "tags": ["find", "name", "filename", "log", "extension", "files"],
+    "explanation": [
+      ["find .", "Search from the current directory"],
+      ["-type f", "Match regular files"],
+      ["-name '*.log'", "Match names ending in .log"]
+    ],
+    "safety": "read-only"
+  },
+  {
+    "id": "grep-recursive",
+    "shell": "bash",
+    "command": "grep -rn 'TODO' .",
+    "description": "Search recursively for TODO in files",
+    "tags": ["grep", "search", "text", "string", "recursive", "todo"],
+    "explanation": [
+      ["grep", "Search text using a pattern"],
+      ["-r", "Search directories recursively"],
+      ["-n", "Show matching line numbers"],
+      ["'TODO'", "Text pattern to search for"],
+      [".", "Search from the current directory"]
+    ],
+    "safety": "read-only"
+  },
+  {
+    "id": "find-recent-files",
+    "shell": "bash",
+    "command": "find . -type f -mtime -7",
+    "description": "Find files modified within roughly the last seven 24-hour periods",
+    "tags": ["find", "recent", "modified", "mtime", "week", "days", "files"],
+    "explanation": [
+      ["-type f", "Match regular files"],
+      ["-mtime -7", "Match files with modification age under seven 24-hour periods"]
+    ],
+    "safety": "read-only"
+  }
+]
