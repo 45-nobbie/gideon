@@ -1,7 +1,16 @@
-.venv/
+# Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-dist/
-build/
-.env
+.venv/
+
+# Test and tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# PyInstaller generated files
+/build/
+/dist/
+
+# Local packaging artifacts
+*.log
